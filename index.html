@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="OMDB Movie Search - Search and discover movie details">
+    <title>OMDB Movie Search</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header class="header">
+            <div class="header-top">
+            <h1 id="homeLogo" class="logo">FindYourMovie</h1>
+                <button id="themeToggle" class="theme-toggle">
+                    🌙
+                </button>
+            </div>
+
+            <p class="subtitle">
+                Search millions of movies, TV shows and episodes!
+            </p>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="search-input" 
+                    placeholder="Enter movie name..."
+                    autocomplete="off"
+                    aria-label="Movie search input"
+                >
+                <button id="searchBtn" class="search-btn" aria-label="Search button">
+                     Search
+                </button>
+                <button id="clearBtn" class="clear-btn" aria-label="Clear search" title="Clear search">
+                    ✕ Clear
+                </button>
+            </div>
+            
+            <!-- Filter Options -->
+            <div class="filter-section">
+                <div class="filter-group">
+                    <label for="typeFilter" class="filter-label">Type:</label>
+                    <select id="typeFilter" class="filter-select" aria-label="Filter by type">
+                        <option value="">All</option>
+                        <option value="movie">Movie</option>
+                        <option value="series">Series</option>
+                        <option value="episode">Episode</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="yearFilter" class="filter-label">Year:</label>
+                    <input 
+                        type="number" 
+                        id="yearFilter" 
+                        class="filter-input" 
+                        placeholder="e.g., 2020"
+                        min="1800"
+                        max="2099"
+                        aria-label="Filter by year"
+                    >
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="loading-hidden">
+            <div class="spinner"></div>
+            <p>Searching for movies...</p>
+        </div>
+
+        <!-- Error Message -->
+        <div id="errorMessage" class="error-message hidden">
+            <span class="error-icon">⚠️</span>
+            <p id="errorText"></p>
+        </div>
+
+        <!-- Search Results Grid -->
+        <section id="searchResults" class="search-results-section hidden">
+            <div id="resultsGrid" class="search-results-grid"></div>
+        </section>
+
+        <!-- Pagination Controls -->
+        <div id="paginationControls" class="pagination-controls hidden">
+            <button id="prevBtn" class="pagination-btn prev-btn">← Previous</button>
+            <span id="pageInfo" class="page-info">Page 1 of 1</span>
+            <button id="nextBtn" class="pagination-btn next-btn">Next →</button>
+        </div>
+
+        <!-- Movie Details Modal -->
+        <div id="movieModal" class="modal-overlay hidden">
+            <div class="modal-dialog">
+                <button class="modal-close" aria-label="Close modal">✕</button>
+                
+                <div class="modal-content">
+                    <div class="modal-poster-section">
+                        <img id="modalPosterImg" src="" alt="Movie poster" class="modal-poster">
+                        <span id="modalRatingBadge" class="modal-rating-badge"></span>
+                    </div>
+                    
+                    <div class="modal-details-container">
+                        <h2 id="modalTitle" class="modal-title"></h2>
+                        
+                        <div class="modal-meta-info">
+                            <span class="modal-meta-item">
+                                <strong>Year:</strong>
+                                <span id="modalYear"></span>
+                            </span>
+                            <span class="modal-meta-item">
+                                <strong>Type:</strong>
+                                <span id="modalType"></span>
+                            </span>
+                            <span class="modal-meta-item">
+                                <strong>Rated:</strong>
+                                <span id="modalRated"></span>
+                            </span>
+                        </div>
+
+                        <div class="modal-details-row">
+                            <div class="modal-detail-item">
+                                <strong>Genre:</strong>
+                                <p id="modalGenre"></p>
+                            </div>
+                            <div class="modal-detail-item">
+                                <strong>Director:</strong>
+                                <p id="modalDirector"></p>
+                            </div>
+                        </div>
+
+                        <div class="modal-detail-item full-width">
+                            <strong>Plot:</strong>
+                            <p id="modalPlot"></p>
+                        </div>
+
+                        <div class="modal-details-row">
+                            <div class="modal-detail-item">
+                                <strong>Actors:</strong>
+                                <p id="modalActors"></p>
+                            </div>
+                            <div class="modal-detail-item">
+                                <strong>IMDb Rating:</strong>
+                                <p id="modalImdbRating" class="rating"></p>
+                            </div>
+                        </div>
+
+                        <div class="modal-details-row">
+                            <div class="modal-detail-item">
+                                <strong>Runtime:</strong>
+                                <p id="modalRuntime"></p>
+                            </div>
+                            <div class="modal-detail-item">
+                                <strong>Language:</strong>
+                                <p id="modalLanguage"></p>
+                            </div>
+                        </div>
+
+                        <div class="modal-details-row">
+                            <div class="modal-detail-item">
+                                <strong>Country:</strong>
+                                <p id="modalCountry"></p>
+                            </div>
+                            <div class="modal-detail-item">
+                                <strong>Writers:</strong>
+                                <p id="modalWriter"></p>
+                            </div>
+                        </div>
+
+                        <a 
+                            id="modalImdbLink"
+                            href="#"
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            class="imdb-link"
+                        >
+                            🎬 View on IMDb
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Welcome Message -->
+        <section id="welcomeMessage" class="welcome-message">
+            <p>Welcome! Search for your favorite movies to get started.</p>
+        </section>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
