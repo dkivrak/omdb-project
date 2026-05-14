@@ -12,12 +12,18 @@
         <!-- Header Section -->
         <header class="header">
             <div class="header-top">
-            <h1 id="homeLogo" class="logo">FindYourMovie</h1>
-                <button id="themeToggle" class="theme-toggle">
-                    🌙
-                </button>
-            </div>
+                <h1 id="homeLogo" class="logo">FindYourMovie</h1>
 
+                <div class="header-actions">
+                    <button id="watchlistNavBtn" class="header-icon-btn" aria-label="Open watchlist" title="My Watchlist">
+                        ♡
+                    </button>
+
+                    <button id="themeToggle" class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+                        🌙
+                    </button>
+                </div>
+            </div>
             <p class="subtitle">
                 Search millions of movies, TV shows and episodes!
             </p>
@@ -80,6 +86,26 @@
             <span class="error-icon">⚠️</span>
             <p id="errorText"></p>
         </div>
+        
+        <!-- Watchlist View -->
+        <section id="watchlistView" class="watchlist-view hidden">
+            <div class="section-header">
+                <div>
+                    <h2>My Watchlist</h2>
+                    <p>Movies, series and episodes you saved.</p>
+                </div>
+
+                <button id="clearWatchlistBtn" class="clear-watchlist-btn">
+                    Clear Watchlist
+                </button>
+            </div>
+
+            <section id="emptyWatchlistMessage" class="welcome-message hidden">
+                <p>Your watchlist is empty.</p>
+            </section>
+
+            <div id="watchlistGrid" class="search-results-grid"></div>
+        </section>
 
         <!-- Search Results Grid -->
         <section id="searchResults" class="search-results-section hidden">
@@ -101,7 +127,6 @@
                 <div class="modal-content">
                     <div class="modal-poster-section">
                         <img id="modalPosterImg" src="" alt="Movie poster" class="modal-poster">
-                        <span id="modalRatingBadge" class="modal-rating-badge"></span>
                     </div>
                     
                     <div class="modal-details-container">
@@ -187,8 +212,13 @@
 
         <!-- Welcome Message -->
         <section id="welcomeMessage" class="welcome-message">
-            <p>Welcome! Search for your favorite movies to get started.</p>
+            <p>Start discovering movies, series, and episodes..</p>
         </section>
+
+        <!-- Toast Notification -->
+        <div id="toastNotification" class="toast-notification hidden">
+            <span id="toastText"></span>
+        </div>
     </div>
 
     <script src="app.js"></script>

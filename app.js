@@ -14,6 +14,7 @@ const CONFIG = {
     API_BASE_URL: 'https://www.omdbapi.com',
     STORAGE_KEY: 'omdb_lastSearch',
     THEME_KEY: 'omdb_theme',
+    WATCHLIST_KEY: 'omdb_watchlist',
     TIMEOUT_MS: 10000,
     RESULTS_PER_PAGE: 10,
 };
@@ -35,6 +36,8 @@ const elements = {
     errorMessage: document.getElementById('errorMessage'),
     errorText: document.getElementById('errorText'),
     welcomeMessage: document.getElementById('welcomeMessage'),
+    toastNotification: document.getElementById('toastNotification'),
+    toastText: document.getElementById('toastText'),
     
     // Search results
     searchResultsSection: document.getElementById('searchResults'),
@@ -50,7 +53,6 @@ const elements = {
     movieModal: document.getElementById('movieModal'),
     modalClose: null, // Will be set after DOM is ready
     modalPosterImg: document.getElementById('modalPosterImg'),
-    modalRatingBadge: document.getElementById('modalRatingBadge'),
     modalTitle: document.getElementById('modalTitle'),
     modalYear: document.getElementById('modalYear'),
     modalType: document.getElementById('modalType'),
@@ -66,8 +68,15 @@ const elements = {
     modalWriter: document.getElementById('modalWriter'),
     modalImdbLink: document.getElementById('modalImdbLink'),
     
+    // Home logo
     homeLogo: document.getElementById('homeLogo'),
-    // Theme
+
+    // Watchlist
+    watchlistNavBtn: document.getElementById('watchlistNavBtn'),
+    watchlistView: document.getElementById('watchlistView'),
+    watchlistGrid: document.getElementById('watchlistGrid'),
+    clearWatchlistBtn: document.getElementById('clearWatchlistBtn'),
+    emptyWatchlistMessage: document.getElementById('emptyWatchlistMessage'),
     themeToggle: document.getElementById('themeToggle'),
 };
 
@@ -84,6 +93,8 @@ const state = {
     searchResults: [],
     selectedImdbId: '',
     isLoading: false,
+    watchlist: [],
+    currentView: 'search',
 };
 
 // ========================================
@@ -93,6 +104,7 @@ const state = {
 document.addEventListener('DOMContentLoaded', () => {
     initializeEventListeners();
     restoreTheme();
+    loadWatchlist();
     checkApiKey();
     restoreFromUrl();
 });
@@ -114,6 +126,7 @@ function initializeEventListeners() {
     
     // Clear
     elements.clearBtn.addEventListener('click', handleClear);
+    
     
     // Filters
     const debouncedSearch = debounce(handleSearch, 500);
@@ -144,6 +157,11 @@ function initializeEventListeners() {
     
     // Home logo
     elements.homeLogo.addEventListener('click', goHome);
+
+    // Watchlist
+    elements.watchlistNavBtn.addEventListener('click', openWatchlistTab);
+    elements.clearWatchlistBtn.addEventListener('click', clearWatchlist);
+
     // Theme
     elements.themeToggle.addEventListener('click', toggleTheme);
 }
@@ -174,7 +192,7 @@ async function handleSearch() {
     }
 
     if (query.length < 2) {
-        showError('Search query must be at least 2 characters long');
+        showError('Please enter at least 2 characters to search.');
         return;
     }
 
@@ -239,6 +257,11 @@ function goHome() {
     hidePagination();
     closeModal();
     showWelcomeMessage();
+
+    elements.watchlistView.classList.add('hidden');
+    elements.searchInput.closest('.search-section').classList.remove('hidden');
+    elements.homeLogo.textContent = 'FindYourMovie';
+    state.currentView = 'search';
 
     window.history.replaceState(null, '', window.location.pathname);
     localStorage.removeItem(CONFIG.STORAGE_KEY);
@@ -432,10 +455,22 @@ function createResultCard(movie) {
         ? movie.Poster 
         : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="150" height="225"%3E%3Crect fill="%23333" width="150" height="225"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" font-family="sans-serif" font-size="12" fill="%23999"%3ENo Poster%3C/text%3E%3C/svg%3E';
 
+        const isInWatchlist = checkIsInWatchlist(movie.imdbID);
+
     card.innerHTML = `
+        <button 
+            class="watchlist-toggle ${isInWatchlist ? 'active' : ''}" 
+            type="button"
+            aria-label="${isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}"
+            title="${isInWatchlist ? 'Remove from watchlist' : 'Add to watchlist'}"
+        >
+            ${isInWatchlist ? '♥' : '♡'}
+        </button>
+
         <div class="result-card-poster">
             <img src="${posterSrc}" alt="${movie.Title}" class="result-card-img" loading="lazy">
         </div>
+
         <div class="result-card-content">
             <h3 class="result-card-title">${movie.Title}</h3>
             <div class="result-card-meta">
@@ -444,6 +479,13 @@ function createResultCard(movie) {
             </div>
         </div>
     `;
+
+    const watchlistBtn = card.querySelector('.watchlist-toggle');
+
+    watchlistBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleWatchlist(movie);
+    });
 
     card.addEventListener('click', () => {
         openMovieDetails(movie.imdbID);
@@ -496,7 +538,6 @@ function displayMovieDetailsModal(movie) {
     }
 
     // IMDb link
-    elements.modalRatingBadge.textContent = movie.imdbRating !== 'N/A' ? movie.imdbRating : '—';
     elements.modalImdbLink.href = `https://www.imdb.com/title/${movie.imdbID}/`;
 
     openModal();
@@ -612,8 +653,162 @@ function hideWelcomeMessage() {
     elements.welcomeMessage.classList.add('hidden');
 }
 
+let toastTimeout;
+
+function showToast(message) {
+    if (!elements.toastNotification || !elements.toastText) return;
+
+    clearTimeout(toastTimeout);
+
+    elements.toastText.textContent = message;
+    elements.toastNotification.classList.remove('hidden');
+    elements.toastNotification.classList.add('show');
+
+    toastTimeout = setTimeout(() => {
+        elements.toastNotification.classList.remove('show');
+
+        setTimeout(() => {
+            elements.toastNotification.classList.add('hidden');
+        }, 200);
+    }, 1800);
+}
+
 // ========================================
-// URL & PERSISTENCE
+// WATCHLIST SYSTEM
+// ========================================
+
+function loadWatchlist() {
+    const savedWatchlist = localStorage.getItem(CONFIG.WATCHLIST_KEY);
+
+    if (!savedWatchlist) {
+        state.watchlist = [];
+        return;
+    }
+
+    try {
+        state.watchlist = JSON.parse(savedWatchlist);
+    } catch (error) {
+        console.error('Watchlist parse error:', error);
+        state.watchlist = [];
+        localStorage.removeItem(CONFIG.WATCHLIST_KEY);
+    }
+}
+
+function saveWatchlist() {
+    localStorage.setItem(CONFIG.WATCHLIST_KEY, JSON.stringify(state.watchlist));
+}
+
+function checkIsInWatchlist(imdbId) {
+    return state.watchlist.some((movie) => movie.imdbID === imdbId);
+}
+
+function toggleWatchlist(movie) {
+    const isInWatchlist = checkIsInWatchlist(movie.imdbID);
+
+    if (isInWatchlist) {
+        state.watchlist = state.watchlist.filter((item) => item.imdbID !== movie.imdbID);
+        showToast('Removed from Watchlist');
+    } else {
+        state.watchlist.unshift({
+            imdbID: movie.imdbID,
+            Title: movie.Title,
+            Year: movie.Year,
+            Type: movie.Type,
+            Poster: movie.Poster,
+        });
+
+        showToast('Added to Watchlist');
+    }
+
+    saveWatchlist();
+
+    if (state.currentView === 'watchlist') {
+        renderWatchlistView();
+    } else {
+        refreshResultCards();
+    }
+}
+
+function clearWatchlist() {
+    state.watchlist = [];
+    saveWatchlist();
+    renderWatchlistView();
+    showToast('Watchlist cleared');
+}
+
+function renderWatchlistView() {
+    elements.watchlistGrid.innerHTML = '';
+
+    if (state.watchlist.length === 0) {
+        elements.emptyWatchlistMessage.classList.remove('hidden');
+        elements.clearWatchlistBtn.disabled = true;
+        return;
+    }
+
+    elements.emptyWatchlistMessage.classList.add('hidden');
+    elements.clearWatchlistBtn.disabled = false;
+
+    state.watchlist.forEach((movie) => {
+        const card = createResultCard(movie);
+        elements.watchlistGrid.appendChild(card);
+    });
+}
+
+function refreshResultCards() {
+    if (state.searchResults.length > 0) {
+        displaySearchResults(state.searchResults);
+    }
+}
+
+function openWatchlistTab() {
+    const watchlistUrl = `${window.location.pathname}?view=watchlist`;
+    window.open(watchlistUrl, '_blank');
+}
+
+// ========================================
+// VIEW SYSTEM
+// ========================================
+
+function showSearchView() {
+    state.currentView = 'search';
+
+    document.title = 'OMDB Movie Search';
+
+    elements.searchInput.closest('.search-section').classList.remove('hidden');
+    elements.watchlistView.classList.add('hidden');
+
+    elements.homeLogo.textContent = 'FindYourMovie';
+
+    if (state.searchResults.length > 0) {
+        showSearchResults();
+        updatePagination();
+        hideWelcomeMessage();
+    } else {
+        hideSearchResults();
+        hidePagination();
+        showWelcomeMessage();
+    }
+}
+
+function showWatchlistView() {
+    state.currentView = 'watchlist';
+
+    document.title = 'My Watchlist - FindYourMovie';
+
+    elements.searchInput.closest('.search-section').classList.add('hidden');
+    elements.searchResultsSection.classList.add('hidden');
+    elements.paginationControls.classList.add('hidden');
+    elements.welcomeMessage.classList.add('hidden');
+    elements.errorMessage.classList.add('hidden');
+
+    elements.homeLogo.textContent = 'My Watchlist';
+    elements.watchlistView.classList.remove('hidden');
+
+    renderWatchlistView();
+}
+
+// ========================================
+// URL AND PERSISTENCE
 // ========================================
 
 /**
@@ -640,6 +835,13 @@ function updateUrl() {
  */
 function restoreFromUrl() {
     const params = new URLSearchParams(window.location.search);
+
+    const view = params.get('view');
+
+    if (view === 'watchlist') {
+        showWatchlistView();
+        return;
+    }
     
     const query = params.get('q');
     const type = params.get('type');
@@ -657,10 +859,8 @@ function restoreFromUrl() {
         state.currentYear = year || '';
         state.currentPage = page;
 
-        // Perform search
         searchMovies(query, type, year, page).then(() => {
             if (id) {
-                // Open specific movie details if id is provided
                 state.selectedImdbId = id;
                 fetchMovieDetails(id);
             }
@@ -755,10 +955,12 @@ function toggleTheme() {
 function restoreTheme() {
     const savedTheme = localStorage.getItem(CONFIG.THEME_KEY);
 
-    if (savedTheme === 'dark') {
+    // Default to dark theme if no preference is saved
+    if (savedTheme === 'light') {
+        document.body.classList.remove('dark-theme');
+        elements.themeToggle.textContent = '🌙';
+    } else {
         document.body.classList.add('dark-theme');
         elements.themeToggle.textContent = '☀️';
-    } else {
-        elements.themeToggle.textContent = '🌙';
     }
 }
