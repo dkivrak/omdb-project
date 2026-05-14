@@ -43,7 +43,7 @@ omdb-project/
 └── .gitignore
 ```
 
-##How It Works
+## How It Works
 1.The user enters a movie, series, or episode name.
 2.The application sends a request to the OMDb API.
 3.Search results are displayed as cards.
@@ -52,7 +52,7 @@ omdb-project/
 6.The latest search state is saved so the page can restore the previous view after refresh.
 
 
-##Main Requirements Covered
+## Main Requirements Covered
 
 **Movie Search Input**
 
@@ -72,7 +72,7 @@ The app displays the required movie details:
 Additional details are also shown if available.
 
 
-##Error Handling
+## Error Handling
 
 The app handles:
 - Empty search input
